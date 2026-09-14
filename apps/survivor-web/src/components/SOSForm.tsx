@@ -16,6 +16,9 @@ import {
   Phone,
   Mail,
   HelpCircle,
+  Mic,
+  Square,
+  Trash2,
 } from 'lucide-react';
 import {
   SOSSubmissionSchema,
@@ -25,6 +28,7 @@ import {
   type ContactMethod,
 } from '@/lib/validation';
 import { useGeolocation } from '@/hooks/useGeolocation';
+import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { enqueueIncident } from '@/lib/offlineQueue';
 
 interface SOSFormProps {
@@ -103,6 +107,8 @@ export const SOSForm: React.FC<SOSFormProps> = ({
     }
   };
 
+  const voice = useVoiceRecorder(15);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormErrors([]);
@@ -113,12 +119,15 @@ export const SOSForm: React.FC<SOSFormProps> = ({
       label: 'Unspecified Pin',
     };
 
+    const finalDescription = description.trim() || (voice.audioBase64 ? 'Voice SOS Audio Message Recorded' : '');
+
     const payloadCandidate = {
       category,
-      description: description.trim(),
+      description: finalDescription,
       location: currentLocation,
       peopleAffected: Number(peopleAffected),
       urgentNeeds,
+      audioBlob: voice.audioBase64 || undefined,
       reporter: {
         contactMethod,
         contactValue: contactValue.trim() || undefined,
@@ -350,6 +359,100 @@ export const SOSForm: React.FC<SOSFormProps> = ({
             outline: 'none',
           }}
         />
+
+        {/* 1-Tap Voice Distress Recording */}
+        <div style={{ marginTop: '10px' }}>
+          {!voice.audioUrl ? (
+            <button
+              type="button"
+              onClick={voice.isRecording ? voice.stopRecording : voice.startRecording}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: '8px',
+                border: `2px solid ${voice.isRecording ? '#ef4444' : '#3b82f6'}`,
+                backgroundColor: voice.isRecording ? '#7f1d1d' : '#1e293b',
+                color: '#ffffff',
+                fontWeight: 700,
+                fontSize: '14px',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {voice.isRecording ? (
+                <>
+                  <Square size={16} color="#ffffff" />
+                  <span
+                    className="beacon-pulse"
+                    style={{
+                      display: 'inline-block',
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      backgroundColor: '#ef4444',
+                    }}
+                  />
+                  <span>Recording Voice SOS ({voice.recordingDuration}s / 15s) - Click to Finish</span>
+                </>
+              ) : (
+                <>
+                  <Mic size={18} color="#60a5fa" />
+                  <span>1-Tap: Record Voice Distress (15s Max for Trapped Victims)</span>
+                </>
+              )}
+            </button>
+          ) : (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '8px',
+                padding: '10px 14px',
+                backgroundColor: '#064e3b',
+                border: '1px solid #059669',
+                borderRadius: '8px',
+                color: '#ecfdf5',
+                fontSize: '13px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Check size={16} color="#34d399" />
+                <span>Voice SOS Ready ({voice.recordingDuration}s)</span>
+                <audio src={voice.audioUrl} controls style={{ height: '28px', maxWidth: '200px' }} />
+              </div>
+              <button
+                type="button"
+                onClick={voice.clearRecording}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#fca5a5',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                }}
+              >
+                <Trash2 size={14} />
+                Discard
+              </button>
+            </div>
+          )}
+
+          {voice.error && (
+            <div style={{ color: '#fca5a5', fontSize: '12px', marginTop: '6px' }}>
+              {voice.error}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Step 3: Location Capture */}

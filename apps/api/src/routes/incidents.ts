@@ -37,6 +37,7 @@ incidentsRouter.post('/', async (req: Request, res: Response): Promise<void> => 
     description: payload.description,
     peopleAffected: payload.peopleAffected,
     urgentNeeds: payload.urgentNeeds,
+    audioBlob: payload.audioBlob,
     details: {
       category: payload.category,
       description: payload.description,

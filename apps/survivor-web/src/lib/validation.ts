@@ -39,6 +39,7 @@ export const SOSSubmissionSchema = z.object({
   peopleAffected: z.coerce.number().int().min(1, 'At least 1 person must be affected').default(1),
   urgentNeeds: z.array(UrgentNeedEnum).default([]),
   reporter: ReporterSchema.optional(),
+  audioBlob: z.string().optional(),
 });
 export type SOSSubmission = z.infer<typeof SOSSubmissionSchema>;
 
@@ -65,6 +66,7 @@ export const IncidentResponseSchema = z.object({
   createdAt: z.union([z.string(), z.number()]),
   updatedAt: z.union([z.string(), z.number()]).optional(),
   triage: IncidentTriageSchema.optional(),
+  audioBlob: z.string().optional(),
   details: z.object({
     category: IncidentCategoryEnum,
     description: z.string(),
