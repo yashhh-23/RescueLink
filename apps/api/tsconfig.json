@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@rescue-link/schema": ["../../packages/schema/dist"],
+      "@rescue-link/config": ["../../packages/config/dist"]
+    }
+  },
+  "include": ["src/**/*"]
+}

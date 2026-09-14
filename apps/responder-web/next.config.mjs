@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  transpilePackages: ['@rescue-link/schema'],
 
   // survivor-web's client code calls relative `/api/...` paths (see
   // src/lib/offlineQueue.ts and src/components/IncidentStatus.tsx there).

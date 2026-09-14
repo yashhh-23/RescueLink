@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@rescue-link/schema": "*",
     "idb": "^8.0.2",
     "lucide-react": "^1.16.0",
     "next": "^15.2.1",
