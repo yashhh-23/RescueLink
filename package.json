@@ -1,0 +1,24 @@
+{
+  "name": "rescue-link-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:survivor": "npm run dev --workspace=apps/survivor-web",
+    "dev:responder": "npm run dev --workspace=apps/responder-web",
+    "build:packages": "npm run build --workspace=packages/schema && npm run build --workspace=packages/config",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest run",
+    "build": "npm run build:packages && npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "ci": "npm run build:packages && npm run typecheck && npm run test && npm run build"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.7"
+  }
+}
