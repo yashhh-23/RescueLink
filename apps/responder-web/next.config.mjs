@@ -10,8 +10,7 @@ const nextConfig = {
   // RESCUE_LINK_API_ORIGIN and requests to /api/* will be proxied there.
   // In production, prefer terminating both under one gateway/domain instead.
   async rewrites() {
-    const apiOrigin = process.env.RESCUE_LINK_API_ORIGIN;
-    if (!apiOrigin) return [];
+    const apiOrigin = process.env.RESCUE_LINK_API_ORIGIN || 'http://localhost:3001';
     return [
       {
         source: "/api/:path*",
