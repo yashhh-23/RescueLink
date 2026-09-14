@@ -1,15 +1,15 @@
+import type { Metadata } from 'next';
 import './globals.css';
-import React from 'react';
 
-export const metadata = {
-  title: 'RescueLink - Responder Command Dashboard',
-  description: 'Real-time Emergency Dispatch & Triage Management',
+export const metadata: Metadata = {
+  title: 'Rescue-Link Responder Dashboard',
+  description: 'Operational dashboard for responder incident triage and coordination.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className="font-sans antialiased">{children}</body>
     </html>
   );
 }
