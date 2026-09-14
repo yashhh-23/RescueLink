@@ -7,12 +7,7 @@
     "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
-    "skipLibCheck": true,
-    "baseUrl": ".",
-    "paths": {
-      "@rescue-link/schema": ["../../packages/schema/dist"],
-      "@rescue-link/config": ["../../packages/config/dist"]
-    }
+    "skipLibCheck": true
   },
   "include": ["src/**/*"]
 }
