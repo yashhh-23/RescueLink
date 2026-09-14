@@ -1,8 +1,9 @@
-# Developer Contribution & Handoff Report
+# Developer Contribution & Handoff Report (Phase 1 & Phase 2 Roadmap)
 
 **Developer:** Dev A (Sahil)  
 **Module:** `apps/survivor-web`  
 **Role:** Frontend Survivor Client (Edge Offline PWA & Distress SOS Tracker)  
+**Phase Status:** Phase 1 (Completed & Verified) | Phase 2 (Roadmap & Implementation Plan)  
 **Date:** September 2026  
 
 ---
@@ -105,8 +106,69 @@ npm run dev
 
 ---
 
-## 4. Pending / Next Steps (Post-Integration)
+## 4. Phase 1 Verification & Monorepo Integration Status (Completed)
 
-- [ ] Monorepo package linking: Once root `package.json` workspace is set up, link `@rescue-link/schema` as a workspace dependency.
-- [ ] Service worker manifest / PWA asset bundle caching for zero-dependency captive portal splash page.
-- [ ] End-to-end integration test against running `apps/api` mock/local server.
+- [x] **Monorepo Workspaces & Root Linking**: Integrated into npm workspaces alongside `@rescue-link/schema`, `@rescue-link/config`, `apps/api`, and `apps/responder-web`.
+- [x] **Contract Dual-Compatibility**: Resolved schema divergence; `apps/api` now emits both top-level emergency fields (`category`, `description`, `peopleAffected`, `urgentNeeds`) and nested `details` so `IncidentResponseSchema.safeParse()` passes 100%.
+- [x] **Next.js Proxy Rewrites**: Configured `apps/survivor-web/next.config.mjs` to automatically proxy relative `/api/*` requests to `http://localhost:3001` during local dev.
+- [x] **Quality Gate**: 27/27 monorepo tests passing, 0 TypeScript errors across all workspaces, and production build cleanly verified.
+
+---
+
+## 5. Phase 2 Roadmap: Survivor Edge PWA & Two-Way Relay
+
+As per the **CloudBeacon PRD Architecture (Stage 1: The Disaster Edge & Stage 3: Two-Way Emergency Dispatch)**, the following deliverables constitute the **Phase 2 scope for Dev A (Sahil)** to provide complete cross-team alignment:
+
+### 1. Voice SOS Audio Distress Capture (PRD Stage 1: Item 2 - Captive Portal)
+* **PRD Requirement**: *"Allows trapped survivors to send voice and text SOS messages even when the internet and cell towers are completely destroyed."*
+* **Architecture & API Context**:
+  - Victims trapped under collapsed structures or blinded by smoke cannot type descriptions.
+  - Implement a 1-tap **"Record Voice Distress"** button using browser `MediaRecorder` API (capturing 10-15s compressed `audio/webm` or `audio/ogg`).
+  - **Offline Storage**: Store the audio Blob in local IndexedDB (`pendingIncidents`).
+  - **Backend Transmission**: Send audio as base64 or multipart payload to `POST /api/incidents`, ready for downstream transcription and analysis by Amazon Bedrock (Claude 3.5).
+
+### 2. Rescuer En-Route & Unit Deployment Tracking (PRD Stage 3: Item 9 & 10)
+* **PRD Requirement**: Two-way feedback loop showing survivors that rescue teams are actively deploying.
+* **Architecture & API Context**:
+  - When Dev B (Responder Dashboard) assigns rescue units via `PATCH /api/incidents/:id` (`triage.assignedUnits: ["Boat Unit-4", "Medic-2"]`), this data is returned in the 5-second polling loop from `GET /api/incidents/:id`.
+  - **UI Component**: In `IncidentStatus.tsx`, render a prominent **"Rescue Team Deployed"** card:
+    - Lists active unit callsigns (`Boat Unit-4`).
+    - Displays reassuring deterministic survival guidance: *"Rescue unit assigned. Remain in your current position; help is en route to your GPS coordinates."*
+    - Automatically updates dispatch status circle to `IN PROGRESS`.
+
+### 3. High-Priority Two-Way Evacuation Alerts (PRD Stage 3: Item 10 - Amazon SNS/SES)
+* **PRD Requirement**: Flash evacuation alerts when secondary hazards emerge (e.g. dam breach, wind shift).
+* **Architecture & API Context**:
+  - When EOC responders broadcast emergency evacuation orders, `triage.suggestedAction` or an alert flag is updated on the incident.
+  - **UI Component**: Render a full-screen high-contrast **Flash Emergency Warning Modal** with audio alert beeps and clear instructions (e.g. *"FLASH EVACUATION ORDER: Move immediately to higher elevation"*).
+
+### 4. Zero-Data PWA Service Worker & Captive Portal Caching
+* **PRD Requirement**: Instant loading on `EMERGENCY-SOS-HELP` Wi-Fi hotspots with zero internet backhaul.
+* **Architecture & API Context**:
+  - Implement a dedicated PWA Service Worker with a `CacheFirst` strategy for all Next.js static bundles, icons, and styling.
+  - Add `manifest.json` for standalone home-screen installation on iOS/Android.
+  - Guarantees `< 500ms` instantaneous boot time even if the captive Wi-Fi signal drops completely.
+
+### 5. OLED Ultra Low-Power "Survival Mode"
+* **PRD Requirement**: Victims often endure 24-72 hours awaiting rescue with low smartphone battery.
+* **Architecture & API Context**:
+  - Implement an ultra-low-power mode:
+    - `#000000` true OLED pure black background (saving up to 60% display power).
+    - Battery detection via `navigator.getBattery()`: automatically throttles polling interval from 5s to 30s when battery is `< 20%`.
+    - Disables non-essential micro-animations to minimize CPU wakeups.
+
+### 6. Monorepo Package Clean Ingestion
+* **Architecture & API Context**:
+  - Add `"@rescue-link/schema": "*"` to `apps/survivor-web/package.json`.
+  - Re-export domain schemas directly from `@rescue-link/schema` in `src/lib/validation.ts`, completing full workspace package adoption.
+
+---
+
+## 6. Cross-Developer Interface Contract Summary for Phase 2
+
+| Feature | Dev A (Survivor Web) Output / Input | Interfacing Module / Dev | Expected API / Data Contract |
+| :--- | :--- | :--- | :--- |
+| **Voice Distress SOS** | Output: Audio Blob / base64 string | Dev C (`apps/api`) & AWS Bedrock | Payload field `audioBlob?: string` in `SOSSubmissionSchema` |
+| **Rescuer En-Route Tracking** | Input: `triage.assignedUnits` array | Dev B (`apps/responder-web`) | Ingests `assignedUnits: string[]` from `GET /api/incidents/:id` |
+| **Flash Evacuation Directives** | Input: `triage.suggestedAction` updates | Dev B & Dev C (SNS / Bedrock) | Ingests updated AI directive & triggers audio/visual modal |
+| **Shared Schema Ingestion** | Workspace dependency | Dev C (`packages/schema`) | Consumes `@rescue-link/schema` directly from monorepo |
