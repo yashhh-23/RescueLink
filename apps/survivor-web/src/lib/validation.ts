@@ -47,6 +47,8 @@ export const IncidentTriageSchema = z.object({
   confidence: z.number().optional(),
   assignedUnits: z.array(z.string()).optional(),
   notes: z.string().optional(),
+  summary: z.string().optional(),
+  reasoning: z.string().optional(),
 });
 export type IncidentTriage = z.infer<typeof IncidentTriageSchema>;
 
@@ -63,6 +65,13 @@ export const IncidentResponseSchema = z.object({
   createdAt: z.union([z.string(), z.number()]),
   updatedAt: z.union([z.string(), z.number()]).optional(),
   triage: IncidentTriageSchema.optional(),
+  details: z.object({
+    category: IncidentCategoryEnum,
+    description: z.string(),
+    peopleAffected: z.number(),
+    urgentNeeds: z.array(UrgentNeedEnum),
+  }).optional(),
+  assignedTo: z.string().optional(),
 });
 export type IncidentResponse = z.infer<typeof IncidentResponseSchema>;
 

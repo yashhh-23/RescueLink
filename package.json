@@ -11,7 +11,7 @@
     "dev:survivor": "npm run dev --workspace=apps/survivor-web",
     "dev:responder": "npm run dev --workspace=apps/responder-web",
     "build:packages": "npm run build --workspace=packages/schema && npm run build --workspace=packages/config",
-    "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck": "npm run build:packages && npm run typecheck --workspaces --if-present",
     "test": "vitest run",
     "build": "npm run build:packages && npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
