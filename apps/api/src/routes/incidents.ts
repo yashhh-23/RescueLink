@@ -33,6 +33,11 @@ incidentsRouter.post('/', async (req: Request, res: Response): Promise<void> => 
     priority: 'pending_triage',
     location: payload.location,
     reporter: payload.reporter,
+    category: payload.category,
+    description: payload.description,
+    peopleAffected: payload.peopleAffected,
+    urgentNeeds: payload.urgentNeeds,
+    audioBlob: payload.audioBlob,
     details: {
       category: payload.category,
       description: payload.description,
@@ -103,7 +108,10 @@ incidentsRouter.patch('/:id', async (req: Request, res: Response): Promise<void>
     updates.assignedTo = assignedTo;
   }
   if (triage && typeof triage === 'object') {
-    updates.triage = triage;
+    updates.triage = {
+      ...(existing.triage || {}),
+      ...triage,
+    };
   }
 
   const updated = await incidentStore.update(id, updates);

@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: 'RescueLink | Disaster Distress SOS Client',
   description: 'Panic-resilient offline-capable emergency beacon and rescue response tracker.',
   applicationName: 'RescueLink Survivor',
+  manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',

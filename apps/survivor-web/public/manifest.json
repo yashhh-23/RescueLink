@@ -1,0 +1,18 @@
+{
+  "name": "RescueLink Emergency Distress Portal",
+  "short_name": "RescueLink",
+  "description": "Panic-resilient offline-capable emergency beacon and rescue response tracker",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0d14",
+  "theme_color": "#ef4444",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

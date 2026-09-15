@@ -9,6 +9,15 @@ export const createApp = (): Express => {
   app.use(cors());
   app.use(express.json());
 
+  app.get('/', (req: Request, res: Response) => {
+    res.json({
+      status: 'ok',
+      service: 'RescueLink API',
+      health: '/api/health',
+      incidents: '/api/incidents',
+    });
+  });
+
   app.use('/api/health', healthRouter);
   app.use('/api/incidents', incidentsRouter);
 
