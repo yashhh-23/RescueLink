@@ -127,7 +127,7 @@ export function IncidentMap({
   const hazardLayerRef = useRef<L.LayerGroup | null>(null);
   const unitLayerRef = useRef<L.LayerGroup | null>(null);
   const drawnItemsRef = useRef<L.FeatureGroup | null>(null);
-  const drawControlRef = useRef<L.Control.Draw | null>(null);
+  const drawControlRef = useRef<any | null>(null);
   const onGeofenceChangeRef = useRef(onGeofenceChange);
   onGeofenceChangeRef.current = onGeofenceChange;
 
@@ -231,14 +231,16 @@ export function IncidentMap({
     if (!showSensors) return;
 
     sensors.forEach((sensor) => {
+      const pct = sensor.thresholdPercent ?? (sensor as any).percentOfThreshold ?? 0;
+      const statusStr = (sensor.status || 'normal').toString();
       const marker = L.marker([sensor.location.lat, sensor.location.lng], {
         icon: sensorIcon(sensor.status),
       });
       marker.bindPopup(
         `<div style="font-family:Inter,sans-serif;font-size:13px;min-width:170px;">
            <strong>${sensor.label}</strong><br/>
-           ${sensor.value}${sensor.unit} · ${sensor.thresholdPercent}% of threshold<br/>
-           Status: ${sensor.status.toUpperCase()}
+           ${sensor.value}${sensor.unit} · ${pct}% of threshold<br/>
+           Status: ${statusStr.toUpperCase()}
          </div>`
       );
       layer.addLayer(marker);
@@ -253,17 +255,22 @@ export function IncidentMap({
     if (!showHazardZones) return;
 
     hazardZones.forEach((zone) => {
+      const label = zone.label || (zone as any).name || 'Hazard Zone';
+      const kind = (zone.kind || (zone as any).hazardType || 'hazard').toString();
+      const severity = (zone.severity || 'warning').toString();
+      const color = HAZARD_SEVERITY_COLOR[zone.severity] || '#f59e0b';
+
       const circle = L.circle([zone.center.lat, zone.center.lng], {
         radius: zone.radiusMeters,
-        color: HAZARD_SEVERITY_COLOR[zone.severity],
-        fillColor: HAZARD_SEVERITY_COLOR[zone.severity],
+        color,
+        fillColor: color,
         fillOpacity: 0.12,
         weight: 2,
       });
       circle.bindPopup(
         `<div style="font-family:Inter,sans-serif;font-size:13px;">
-           <strong>${zone.label}</strong><br/>
-           ${zone.kind.toUpperCase()} · ${zone.severity.toUpperCase()}
+           <strong>${label}</strong><br/>
+           ${kind.toUpperCase()} · ${severity.toUpperCase()}
          </div>`
       );
       layer.addLayer(circle);
@@ -313,7 +320,7 @@ export function IncidentMap({
       return;
     }
 
-    const drawControl = new L.Control.Draw({
+    const drawControl = new (L.Control as any).Draw({
       draw: {
         polygon: { allowIntersection: false, showArea: false },
         circle: {},
@@ -355,21 +362,22 @@ export function IncidentMap({
 
     function handleCreated(e: L.LeafletEvent) {
       drawnItems!.clearLayers(); // one geofence at a time
-      drawnItems!.addLayer((e as L.DrawEvents.Created).layer);
+      drawnItems!.addLayer((e as any).layer);
       emitShape();
     }
     function handleEditedOrDeleted() {
       emitShape();
     }
 
-    map.on(L.Draw.Event.CREATED, handleCreated as L.LeafletEventHandlerFn);
-    map.on(L.Draw.Event.EDITED, handleEditedOrDeleted);
-    map.on(L.Draw.Event.DELETED, handleEditedOrDeleted);
+    const drawEvents = (L as any).Draw?.Event || {};
+    map.on(drawEvents.CREATED || 'draw:created', handleCreated as L.LeafletEventHandlerFn);
+    map.on(drawEvents.EDITED || 'draw:edited', handleEditedOrDeleted);
+    map.on(drawEvents.DELETED || 'draw:deleted', handleEditedOrDeleted);
 
     return () => {
-      map.off(L.Draw.Event.CREATED, handleCreated as L.LeafletEventHandlerFn);
-      map.off(L.Draw.Event.EDITED, handleEditedOrDeleted);
-      map.off(L.Draw.Event.DELETED, handleEditedOrDeleted);
+      map.off(drawEvents.CREATED || 'draw:created', handleCreated as L.LeafletEventHandlerFn);
+      map.off(drawEvents.EDITED || 'draw:edited', handleEditedOrDeleted);
+      map.off(drawEvents.DELETED || 'draw:deleted', handleEditedOrDeleted);
       if (drawControlRef.current) {
         map.removeControl(drawControlRef.current);
         drawControlRef.current = null;

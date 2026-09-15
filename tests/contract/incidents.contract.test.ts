@@ -154,4 +154,50 @@ describe('API Contract Tests - /api/incidents', () => {
       expect(ackRes.body.assignedTo).toBe('responder-unit-42');
     });
   });
+
+  describe('POST /api/incidents/:id/broadcast', () => {
+    it('sends tactical directive broadcast to survivor/zone', async () => {
+      const postRes = await request(app).post('/api/incidents').send({
+        category: 'flood',
+        description: 'Trapped on balcony',
+        location: { lat: 37.77, lng: -122.41 },
+        peopleAffected: 2,
+        urgentNeeds: ['medical'],
+      });
+
+      const incidentId = postRes.body.id;
+      const bcastRes = await request(app)
+        .post(`/api/incidents/${incidentId}/broadcast`)
+        .send({
+          message: 'EVACUATE TO ROOF IMMEDIATELY',
+          channel: 'wifi',
+          target: 'zone',
+        });
+
+      expect(bcastRes.status).toBe(200);
+      expect(bcastRes.body.success).toBe(true);
+      expect(bcastRes.body.incident.triage.suggestedAction).toBe('EVACUATE TO ROOF IMMEDIATELY');
+    });
+  });
+
+  describe('GET /api/sensors and /api/hazard-zones', () => {
+    it('returns environmental sensor telemetry list', async () => {
+      const res = await request(app).get('/api/sensors');
+
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBeGreaterThan(0);
+      expect(res.body[0]).toHaveProperty('type');
+      expect(res.body[0]).toHaveProperty('percentOfThreshold');
+    });
+
+    it('returns disaster hazard zones list', async () => {
+      const res = await request(app).get('/api/hazard-zones');
+
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBeGreaterThan(0);
+      expect(res.body[0]).toHaveProperty('radiusMeters');
+    });
+  });
 });

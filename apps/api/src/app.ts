@@ -2,6 +2,8 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { healthRouter } from './routes/health';
 import { incidentsRouter } from './routes/incidents';
+import { eventsRouter } from './routes/events';
+import { telemetryRouter } from './routes/telemetry';
 
 export const createApp = (): Express => {
   const app = express();
@@ -15,11 +17,16 @@ export const createApp = (): Express => {
       service: 'RescueLink API',
       health: '/api/health',
       incidents: '/api/incidents',
+      events: '/api/events',
+      sensors: '/api/sensors',
+      hazardZones: '/api/hazard-zones',
     });
   });
 
   app.use('/api/health', healthRouter);
   app.use('/api/incidents', incidentsRouter);
+  app.use('/api/events', eventsRouter);
+  app.use('/api', telemetryRouter);
 
   // Fallback 404 handler
   app.use((req: Request, res: Response) => {
