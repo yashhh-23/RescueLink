@@ -4,20 +4,33 @@ import { formatLocation, hasAssignedUnits } from '@/lib/format';
 import type { IncidentResponse } from '@/lib/schema';
 
 function makeIncident(overrides: Partial<IncidentResponse>): IncidentResponse {
-  return {
-    id: 'inc-1',
-    details: { category: 'flood', description: 'Test incident', peopleAffected: 1, urgentNeeds: [] },
-    location: { lat: 1, lng: 2 },
+  const base: IncidentResponse = {
+    id: 'test-id',
+    createdAt: 1,
+    updatedAt: 1,
+    status: 'new',
+    priority: 'pending_triage',
+    location: {
+      lat: 13.0827,
+      lng: 80.2707,
+      label: 'Test Location'
+    },
+    category: 'flood',
+    description: 'test incident',
     peopleAffected: 1,
     urgentNeeds: [],
-    status: 'new',
-    priority: 'medium',
-    createdAt: new Date('2026-01-01T00:00:00.000Z').getTime(),
-    updatedAt: new Date('2026-01-01T00:00:00.000Z').getTime(),
+    contactMethod: 'none'
+  };
+
+  return {
+    ...base,
     ...overrides,
+    category: overrides.category ?? base.category,
+    description: overrides.description ?? base.description,
+    peopleAffected: overrides.peopleAffected ?? base.peopleAffected,
+    urgentNeeds: overrides.urgentNeeds ?? base.urgentNeeds
   };
 }
-
 describe('filterIncidents', () => {
   it('returns all incidents when filters are "all"', () => {
     const incidents = [makeIncident({ id: 'a' }), makeIncident({ id: 'b' })];
