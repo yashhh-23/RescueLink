@@ -200,4 +200,17 @@ describe('API Contract Tests - /api/incidents', () => {
       expect(res.body[0]).toHaveProperty('radiusMeters');
     });
   });
+
+  describe('POST /api/notifications/test', () => {
+    it('dispatches manual test alert via NotificationService (200 OK)', async () => {
+      const res = await request(app)
+        .post('/api/notifications/test')
+        .send({ priority: 'critical', category: 'fire' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.result.snsSent).toBe(true);
+      expect(res.body.result.sesSent).toBe(true);
+    });
+  });
 });

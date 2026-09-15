@@ -4,6 +4,7 @@ import { healthRouter } from './routes/health';
 import { incidentsRouter } from './routes/incidents';
 import { eventsRouter } from './routes/events';
 import { telemetryRouter } from './routes/telemetry';
+import { notificationsRouter } from './routes/notifications';
 
 export const createApp = (): Express => {
   const app = express();
@@ -20,12 +21,14 @@ export const createApp = (): Express => {
       events: '/api/events',
       sensors: '/api/sensors',
       hazardZones: '/api/hazard-zones',
+      notifications: '/api/notifications/test',
     });
   });
 
   app.use('/api/health', healthRouter);
   app.use('/api/incidents', incidentsRouter);
   app.use('/api/events', eventsRouter);
+  app.use('/api/notifications', notificationsRouter);
   app.use('/api', telemetryRouter);
 
   // Fallback 404 handler
