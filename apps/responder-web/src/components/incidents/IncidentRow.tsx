@@ -11,7 +11,7 @@ interface IncidentRowProps {
 }
 
 export function IncidentTableRow({ incident, isSelected, onSelect }: IncidentRowProps) {
-  const units = incident.triage?.assignedUnits;
+  const units = (incident.assignedTo ? [incident.assignedTo] : undefined);
 
   return (
     <tr
@@ -22,7 +22,7 @@ export function IncidentTableRow({ incident, isSelected, onSelect }: IncidentRow
       }`}
     >
       <td className="px-3 py-2 font-mono text-xs text-ink-500">{incident.id}</td>
-      <td className="px-3 py-2 text-sm text-ink-900">{CATEGORY_LABELS[incident.category]}</td>
+      <td className="px-3 py-2 text-sm text-ink-900">{CATEGORY_LABELS[(incident.details?.category ?? 'other')]}</td>
       <td className="px-3 py-2">
         <PriorityBadge priority={incident.priority} />
       </td>
@@ -39,7 +39,7 @@ export function IncidentTableRow({ incident, isSelected, onSelect }: IncidentRow
 }
 
 export function IncidentCard({ incident, isSelected, onSelect }: IncidentRowProps) {
-  const units = incident.triage?.assignedUnits;
+  const units = (incident.assignedTo ? [incident.assignedTo] : undefined);
 
   return (
     <button
@@ -54,7 +54,7 @@ export function IncidentCard({ incident, isSelected, onSelect }: IncidentRowProp
         <span className="font-mono text-xs text-ink-500">{incident.id}</span>
         <PriorityBadge priority={incident.priority} />
       </div>
-      <p className="text-sm font-medium text-ink-900">{CATEGORY_LABELS[incident.category]}</p>
+      <p className="text-sm font-medium text-ink-900">{CATEGORY_LABELS[(incident.details?.category ?? 'other')]}</p>
       <p className="text-sm text-ink-700">{formatLocation(incident.location)}</p>
       <div className="flex items-center justify-between gap-2">
         <StatusBadge status={incident.status} />

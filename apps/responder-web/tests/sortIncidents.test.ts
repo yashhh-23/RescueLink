@@ -4,20 +4,32 @@ import { formatLocation, hasAssignedUnits } from '@/lib/format';
 import type { IncidentResponse } from '@/lib/schema';
 
 function makeIncident(overrides: Partial<IncidentResponse>): IncidentResponse {
-  return {
-    id: 'inc-1',
+  const base: IncidentResponse = {
+    id: 'test-id',
+    createdAt: 1,
+    updatedAt: 1,
+    status: 'new',
+    priority: 'pending_triage',
+    location: {
+      lat: 13.0827,
+      lng: 80.2707,
+      label: 'Test Location'
+    },
     category: 'flood',
-    description: 'test',
-    location: { lat: 1, lng: 2 },
+    description: 'test incident',
     peopleAffected: 1,
     urgentNeeds: [],
-    status: 'new',
-    priority: 'medium',
-    createdAt: '2026-01-01T00:00:00.000Z',
+  };
+
+  return {
+    ...base,
     ...overrides,
+    category: overrides.category ?? base.category,
+    description: overrides.description ?? base.description,
+    peopleAffected: overrides.peopleAffected ?? base.peopleAffected,
+    urgentNeeds: overrides.urgentNeeds ?? base.urgentNeeds
   };
 }
-
 describe('filterIncidents', () => {
   it('returns all incidents when filters are "all"', () => {
     const incidents = [makeIncident({ id: 'a' }), makeIncident({ id: 'b' })];
@@ -26,8 +38,8 @@ describe('filterIncidents', () => {
 
   it('filters by status, priority, and category independently', () => {
     const incidents = [
-      makeIncident({ id: 'a', status: 'new', priority: 'critical', category: 'flood' }),
-      makeIncident({ id: 'b', status: 'resolved', priority: 'low', category: 'fire' }),
+      makeIncident({ id: 'a', status: 'new', priority: 'critical', details: { category: 'flood', description: 'Test incident', peopleAffected: 1, urgentNeeds: [] } }),
+      makeIncident({ id: 'b', status: 'resolved', priority: 'low', details: { category: 'fire', description: 'Test incident', peopleAffected: 1, urgentNeeds: [] } }),
     ];
 
     expect(filterIncidents(incidents, { status: 'new', priority: 'all', category: 'all' })).toEqual([
@@ -56,8 +68,8 @@ describe('sortIncidents', () => {
 
   it('breaks ties within the same priority by most recently updated first', () => {
     const incidents = [
-      makeIncident({ id: 'older', priority: 'high', updatedAt: '2026-01-01T00:00:00.000Z' }),
-      makeIncident({ id: 'newer', priority: 'high', updatedAt: '2026-01-02T00:00:00.000Z' }),
+      makeIncident({ id: 'older', priority: 'high', updatedAt: new Date('2026-01-01T00:00:00.000Z').getTime() }),
+      makeIncident({ id: 'newer', priority: 'high', updatedAt: new Date('2026-01-02T00:00:00.000Z').getTime() }),
     ];
 
     const sorted = sortIncidents(incidents);

@@ -22,7 +22,7 @@ export function filterIncidents(
   return incidents.filter((incident) => {
     if (filters.status !== 'all' && incident.status !== filters.status) return false;
     if (filters.priority !== 'all' && incident.priority !== filters.priority) return false;
-    if (filters.category !== 'all' && incident.category !== filters.category) return false;
+    if (filters.category !== 'all' && incident.details?.category !== filters.category) return false;
     return true;
   });
 }
