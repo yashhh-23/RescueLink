@@ -7,7 +7,6 @@ function makeIncident(overrides: Partial<IncidentResponse>): IncidentResponse {
   return {
     id: 'inc-1',
     details: { category: 'flood', description: 'Test incident', peopleAffected: 1, urgentNeeds: [] },
-    description: 'test',
     location: { lat: 1, lng: 2 },
     peopleAffected: 1,
     urgentNeeds: [],
