@@ -15,7 +15,7 @@ export function AssignmentControl({ incident, onUpdated }: AssignmentControlProp
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const units = incident.triage?.assignedUnits ?? [];
+  const units = (incident.assignedTo ? [incident.assignedTo] : []);
 
   async function persist(nextUnits: string[]) {
     setIsPending(true);

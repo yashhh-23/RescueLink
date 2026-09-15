@@ -6,7 +6,7 @@ import type { IncidentResponse } from '@/lib/schema';
 function makeIncident(overrides: Partial<IncidentResponse>): IncidentResponse {
   return {
     id: 'inc-1',
-    category: 'flood',
+    details: { category: 'flood', description: 'Test incident', peopleAffected: 1, urgentNeeds: [] },
     description: 'test',
     location: { lat: 1, lng: 2 },
     peopleAffected: 1,
@@ -27,8 +27,8 @@ describe('filterIncidents', () => {
 
   it('filters by status, priority, and category independently', () => {
     const incidents = [
-      makeIncident({ id: 'a', status: 'new', priority: 'critical', category: 'flood' }),
-      makeIncident({ id: 'b', status: 'resolved', priority: 'low', category: 'fire' }),
+      makeIncident({ id: 'a', status: 'new', priority: 'critical', details: { category: 'flood', description: 'Test incident', peopleAffected: 1, urgentNeeds: [] } }),
+      makeIncident({ id: 'b', status: 'resolved', priority: 'low', details: { category: 'fire', description: 'Test incident', peopleAffected: 1, urgentNeeds: [] } }),
     ];
 
     expect(filterIncidents(incidents, { status: 'new', priority: 'all', category: 'all' })).toEqual([

@@ -13,7 +13,7 @@ export function SummaryCards({ incidents }: SummaryCardsProps) {
   const pendingTriage = incidents.filter((i) => i.priority === 'pending_triage').length;
   const active = incidents.filter((i) => ACTIVE_STATUSES.has(i.status)).length;
   const unassigned = incidents.filter(
-    (i) => ACTIVE_STATUSES.has(i.status) && !hasAssignedUnits(i.triage?.assignedUnits)
+    (i) => ACTIVE_STATUSES.has(i.status) && !hasAssignedUnits((i.assignedTo ? [i.assignedTo] : undefined))
   ).length;
 
   const metrics = [

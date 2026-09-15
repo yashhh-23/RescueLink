@@ -15,7 +15,7 @@ interface UnitPositionPanelProps {
  * map/distance display has something real to show instead of nothing.
  */
 export function UnitPositionPanel({ incident }: UnitPositionPanelProps) {
-  const units = incident.triage?.assignedUnits ?? [];
+  const units = (incident.assignedTo ? [incident.assignedTo] : []);
   const { getPosition, reportPosition } = useUnitPositions();
   const [drafts, setDrafts] = useState<Record<string, { lat: string; lng: string }>>({});
 

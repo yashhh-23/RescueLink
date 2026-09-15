@@ -83,16 +83,16 @@ export const URGENT_NEED_LABELS: Record<UrgentNeed, string> = {
  * `details` only if a future backend build stops dual-writing.
  */
 export function getCategory(incident: Incident): IncidentCategory {
-  return incident.category ?? incident.details?.category ?? 'other';
+  return incident.details?.category ?? 'other';
 }
 export function getDescription(incident: Incident): string {
-  return incident.description ?? incident.details?.description ?? '';
+  return incident.details?.description ?? '';
 }
 export function getPeopleAffected(incident: Incident): number {
-  return incident.peopleAffected ?? incident.details?.peopleAffected ?? 0;
+  return incident.details?.peopleAffected ?? 0;
 }
 export function getUrgentNeeds(incident: Incident): UrgentNeed[] {
-  return incident.urgentNeeds ?? incident.details?.urgentNeeds ?? [];
+  return incident.details?.urgentNeeds ?? [];
 }
 
 export interface IncidentFilters {
