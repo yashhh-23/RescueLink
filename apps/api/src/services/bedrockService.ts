@@ -32,7 +32,7 @@ export class BedrockService {
 
     const prompt = `Human: You are an expert emergency dispatch AI for RescueLink. Triage the following disaster SOS report:
 Category: ${incident.category}
-Description: ${incident.description}
+Description: ${incident.description}${incident.audioBlob ? '\nSpoken Audio Distress SOS: Attached (Recorded voice message from survivor)' : ''}
 People Affected: ${incident.peopleAffected}
 Urgent Needs: ${incident.urgentNeeds.join(', ') || 'None specified'}
 Location: Lat ${incident.location.lat}, Lng ${incident.location.lng}

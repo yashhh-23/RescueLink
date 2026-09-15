@@ -74,6 +74,20 @@ export default function IncidentDetailPage() {
               <p className="mt-2 whitespace-pre-wrap text-sm text-ink-700">{getDescription(incident)}</p>
             </section>
 
+            {incident.audioBlob && (
+              <section className="rounded-md border border-red-500/40 bg-red-950/20 p-4">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500"></span>
+                  </span>
+                  <h2 className="text-sm font-semibold text-red-200">Survivor Voice Distress Dispatch</h2>
+                </div>
+                <p className="mt-1 text-xs text-ink-500">Spoken audio dispatch captured from survivor device:</p>
+                <audio src={incident.audioBlob} controls className="mt-3 w-full" />
+              </section>
+            )}
+
             <section className="rounded-md border border-line bg-surface p-4">
               <h2 className="text-sm font-semibold text-ink-900">People and urgent needs</h2>
               <dl className="mt-2 space-y-2 text-sm">

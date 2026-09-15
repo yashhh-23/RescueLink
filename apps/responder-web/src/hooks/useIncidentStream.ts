@@ -47,8 +47,11 @@ export function useIncidentStream({ onIncident }: UseIncidentStreamOptions): Str
     source.addEventListener('incident', (event) => {
       if (cancelled) return;
       try {
-        const parsed = JSON.parse((event as MessageEvent).data) as IncidentResponse;
-        onIncidentRef.current(parsed);
+        const raw = JSON.parse((event as MessageEvent).data);
+        const incoming: IncidentResponse = raw && raw.incident ? raw.incident : (raw as IncidentResponse);
+        if (incoming && incoming.id) {
+          onIncidentRef.current(incoming);
+        }
       } catch {
         // Malformed push — ignore this event, polling will still catch up.
       }
