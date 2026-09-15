@@ -29,6 +29,16 @@ const config: Config = {
           hover: "#1841B8",
           soft: "#EFF4FF",
         },
+        danger: {
+          DEFAULT: "#DC2626",
+          hover: "#B91C1C",
+          soft: "#FEE2E2",
+        },
+        success: {
+          DEFAULT: "#16A34A",
+          hover: "#0F7A38",
+          soft: "#DCFCE7",
+        },
         // Priority palette per spec: critical=red, high=orange, medium=yellow, low=green
         priority: {
           critical: "#DC2626",
@@ -51,6 +61,8 @@ const config: Config = {
           inProgressBg: "#FFEDD5",
           resolved: "#0F7A47",
           resolvedBg: "#E9F7EF",
+          closed: "#5B6472",
+          closedBg: "#F1F2F4",
         },
       },
       boxShadow: {

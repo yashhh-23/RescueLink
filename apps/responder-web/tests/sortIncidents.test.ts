@@ -13,7 +13,8 @@ function makeIncident(overrides: Partial<IncidentResponse>): IncidentResponse {
     urgentNeeds: [],
     status: 'new',
     priority: 'medium',
-    createdAt: '2026-01-01T00:00:00.000Z',
+    createdAt: new Date('2026-01-01T00:00:00.000Z').getTime(),
+    updatedAt: new Date('2026-01-01T00:00:00.000Z').getTime(),
     ...overrides,
   };
 }
@@ -56,8 +57,8 @@ describe('sortIncidents', () => {
 
   it('breaks ties within the same priority by most recently updated first', () => {
     const incidents = [
-      makeIncident({ id: 'older', priority: 'high', updatedAt: '2026-01-01T00:00:00.000Z' }),
-      makeIncident({ id: 'newer', priority: 'high', updatedAt: '2026-01-02T00:00:00.000Z' }),
+      makeIncident({ id: 'older', priority: 'high', updatedAt: new Date('2026-01-01T00:00:00.000Z').getTime() }),
+      makeIncident({ id: 'newer', priority: 'high', updatedAt: new Date('2026-01-02T00:00:00.000Z').getTime() }),
     ];
 
     const sorted = sortIncidents(incidents);

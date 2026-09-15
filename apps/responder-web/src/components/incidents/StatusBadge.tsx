@@ -6,6 +6,7 @@ const STYLES: Record<IncidentStatus, string> = {
   acknowledged: 'bg-status-acknowledgedBg text-status-acknowledged',
   in_progress: 'bg-status-inProgressBg text-status-inProgress',
   resolved: 'bg-status-resolvedBg text-status-resolved',
+  closed: 'bg-status-closedBg text-status-closed',
 };
 
 export function StatusBadge({ status }: { status: IncidentStatus }) {

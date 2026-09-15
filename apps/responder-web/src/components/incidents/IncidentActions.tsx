@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ApiError, updateIncident } from '@/lib/api';
+import { ApiError, acknowledgeIncident, updateIncident } from '@/lib/api';
 import { NEXT_ACTION } from '@/lib/schema';
 import type { IncidentResponse } from '@/lib/schema';
 
@@ -29,7 +29,14 @@ export function IncidentActions({ incident, onUpdated }: IncidentActionsProps) {
     setIsPending(true);
     setError(null);
     try {
-      const updated = await updateIncident(incident.id, { status: action!.next });
+      // "Acknowledge" (new -> acknowledged) goes through the dedicated
+      // POST /:id/acknowledge endpoint, which apps/api uses to let a
+      // dispatcher claim ownership (assignedTo) in the same call. Every
+      // later transition is a plain status PATCH.
+      const updated =
+        incident.status === 'new'
+          ? await acknowledgeIncident(incident.id)
+          : await updateIncident(incident.id, { status: action!.next });
       onUpdated(updated);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Unable to update this incident.');
