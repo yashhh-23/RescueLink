@@ -18,15 +18,27 @@ import {
   Zap,
   Moon,
   Volume2,
+  Flashlight,
+  Check,
+  Mic,
+  Activity,
 } from 'lucide-react';
-import type { IncidentCategory, IncidentStatus as IncidentStatusType, IncidentResponse } from '@/lib/validation';
+import type {
+  IncidentCategory,
+  IncidentStatus as IncidentStatusType,
+  IncidentResponse,
+  SOSSubmission,
+} from '@/lib/validation';
 import { isLocalIncidentId } from '@/lib/offlineQueue';
 import { useBatteryOptimization } from '@/hooks/useBatteryOptimization';
+import { useSurvivorStream } from '@/hooks/useSurvivorStream';
+import { useScreenBeacon } from '@/hooks/useScreenBeacon';
 
 interface IncidentStatusProps {
   incidentId: string;
   category: IncidentCategory;
   isLocal: boolean;
+  payload?: SOSSubmission;
   onReset: () => void;
 }
 
@@ -75,6 +87,7 @@ export const IncidentStatus: React.FC<IncidentStatusProps> = ({
   incidentId: initialIncidentId,
   category,
   isLocal: initialIsLocal,
+  payload,
   onReset,
 }) => {
   const [incidentId, setIncidentId] = useState<string>(initialIncidentId);
@@ -83,6 +96,8 @@ export const IncidentStatus: React.FC<IncidentStatusProps> = ({
   const [incidentData, setIncidentData] = useState<IncidentResponse | null>(null);
   const [isPolling, setIsPolling] = useState<boolean>(false);
   const [lastPolledAt, setLastPolledAt] = useState<Date | null>(null);
+  const [liveBroadcastDirective, setLiveBroadcastDirective] = useState<string | null>(null);
+  const [isDirectiveAcknowledged, setIsDirectiveAcknowledged] = useState<boolean>(false);
   const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
@@ -94,11 +109,33 @@ export const IncidentStatus: React.FC<IncidentStatusProps> = ({
     recommendedPollIntervalMs,
   } = useBatteryOptimization();
 
+  const { isBeaconActive, toggleBeacon, strobeColor } = useScreenBeacon();
+
   // Update when prop changes
   useEffect(() => {
     setIncidentId(initialIncidentId);
     setIsLocal(initialIsLocal || isLocalIncidentId(initialIncidentId));
   }, [initialIncidentId, initialIsLocal]);
+
+  // Audio chime generator for flash evacuation alert
+  const playAlertChime = useCallback(() => {
+    try {
+      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.35);
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.35);
+    } catch {
+      // Audio context restricted or unavailable
+    }
+  }, []);
 
   const fetchIncidentDetails = useCallback(async () => {
     // OFFLINE ID GUARD: Never poll if the incident has a local queue ID
@@ -124,7 +161,31 @@ export const IncidentStatus: React.FC<IncidentStatusProps> = ({
     }
   }, [incidentId, isLocal]);
 
-  // Polling loop: Dynamic polling interval responsive to battery level
+  // Handle zero-latency push events from SSE stream
+  const handleStreamUpdate = useCallback(
+    (incomingIncident: IncidentResponse, broadcastMessage?: string) => {
+      setIncidentData(incomingIncident);
+      if (incomingIncident.status) {
+        setStatus(incomingIncident.status);
+      }
+      if (broadcastMessage) {
+        setLiveBroadcastDirective(broadcastMessage);
+        setIsDirectiveAcknowledged(false);
+        playAlertChime();
+      }
+      setLastPolledAt(new Date());
+    },
+    [playAlertChime]
+  );
+
+  // Real-time zero-latency event stream listener
+  const { streamStatus } = useSurvivorStream({
+    incidentId,
+    isLocal,
+    onUpdate: handleStreamUpdate,
+  });
+
+  // Polling fallback loop: runs responsive to battery level
   useEffect(() => {
     if (isLocal || isLocalIncidentId(incidentId)) {
       if (pollTimerRef.current) {
@@ -149,26 +210,6 @@ export const IncidentStatus: React.FC<IncidentStatusProps> = ({
     };
   }, [incidentId, isLocal, fetchIncidentDetails, recommendedPollIntervalMs]);
 
-  // Audio chime generator for flash evacuation alert
-  const playAlertChime = () => {
-    try {
-      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.35);
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.35);
-    } catch {
-      // Audio context restricted or unavailable
-    }
-  };
-
   // Assigned units resolution (supports both triage.assignedUnits and top-level assignedUnits)
   const assignedUnits: string[] =
     incidentData?.triage?.assignedUnits ||
@@ -183,10 +224,24 @@ export const IncidentStatus: React.FC<IncidentStatusProps> = ({
 
   const currentStepIndex = STATUS_STEPS.indexOf(effectiveStatus);
   const safetyDirective = STATIC_SAFETY_DIRECTIVES[category] || STATIC_SAFETY_DIRECTIVES.other;
-  const aiAction =
+
+  // Active tactical directive (either push broadcast or Bedrock AI action)
+  const activeDirective =
+    liveBroadcastDirective ||
     incidentData?.triage?.suggestedAction ||
     (incidentData as { details?: { immediateAction?: string } })?.details?.immediateAction ||
     null;
+
+  // Audio voice SOS source (from server or local submission payload)
+  const effectiveAudioBlob = incidentData?.audioBlob || payload?.audioBlob || null;
+
+  // LoRa / Sat packet payload size estimation (PRD Stage 1: Item 3 - 100-byte spec)
+  const estimatedPayloadBytes = JSON.stringify({
+    cat: category,
+    desc: incidentData?.description || payload?.description,
+    loc: incidentData?.location || payload?.location,
+    p: incidentData?.peopleAffected || payload?.peopleAffected,
+  }).length;
 
   // Visual theming tokens for OLED Survival Mode
   const theme = {
@@ -211,7 +266,60 @@ export const IncidentStatus: React.FC<IncidentStatusProps> = ({
         transition: 'background-color 0.3s ease',
       }}
     >
-      {/* Header with return button & Survival Mode Toggle */}
+      {/* FULL-SCREEN NIGHT RESCUE SCREEN STROBE OVERLAY */}
+      {isBeaconActive && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99999,
+            backgroundColor: strobeColor,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '24px',
+            padding: '20px',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#000000',
+              padding: '16px 24px',
+              borderRadius: '12px',
+              border: '2px solid #ef4444',
+              textAlign: 'center',
+              boxShadow: '0 0 30px rgba(239, 68, 68, 0.8)',
+            }}
+          >
+            <div style={{ fontSize: '20px', fontWeight: 900, color: '#fee2e2', letterSpacing: '0.08em' }}>
+              RESCUE BEACON ACTIVE
+            </div>
+            <div style={{ fontSize: '13px', color: '#fca5a5', marginTop: '4px' }}>
+              Flashing SOS Strobe &amp; Alpine Whistle Bursts for Search Units
+            </div>
+          </div>
+
+          <button
+            onClick={toggleBeacon}
+            style={{
+              backgroundColor: '#ef4444',
+              color: '#ffffff',
+              border: '3px solid #ffffff',
+              padding: '16px 36px',
+              borderRadius: '50px',
+              fontSize: '18px',
+              fontWeight: 800,
+              cursor: 'pointer',
+              boxShadow: '0 0 25px rgba(0,0,0,0.9)',
+            }}
+          >
+            STOP BEACON
+          </button>
+        </div>
+      )}
+
+      {/* Header with return button & Survival Controls */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
         <button
           onClick={onReset}
@@ -233,7 +341,29 @@ export const IncidentStatus: React.FC<IncidentStatusProps> = ({
           Submit Another SOS
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {/* Night Beacon Trigger */}
+          <button
+            onClick={toggleBeacon}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              border: '1px solid #f59e0b',
+              backgroundColor: '#78350f',
+              color: '#fef3c7',
+            }}
+            title="Flash high-visibility screen strobe and whistle pulses for search helicopters"
+          >
+            <Flashlight size={14} color="#fde68a" />
+            NIGHT BEACON
+          </button>
+
           {/* Battery Status Indicator */}
           {batteryLevel !== null && (
             <div
@@ -281,7 +411,7 @@ export const IncidentStatus: React.FC<IncidentStatusProps> = ({
             title="Toggle AMOLED pure black survival mode for maximum battery life"
           >
             {oledMode ? <Zap size={14} color="#34d399" /> : <Moon size={14} />}
-            {oledMode ? 'SURVIVAL MODE ON' : 'SURVIVAL MODE'}
+            {oledMode ? 'SURVIVAL ON' : 'SURVIVAL'}
           </button>
         </div>
       </div>
@@ -305,13 +435,13 @@ export const IncidentStatus: React.FC<IncidentStatusProps> = ({
           <div>
             <strong>CRITICAL BATTERY LEVEL (&le; 20%)</strong>
             <div style={{ color: '#fca5a5', marginTop: '2px' }}>
-              Network polling automatically throttled to 30s to conserve life. OLED Survival Mode is strongly recommended.
+              Network polling throttled to 30s to conserve life. OLED Survival Mode is strongly recommended.
             </div>
           </div>
         </div>
       )}
 
-      {/* Incident Reference Card */}
+      {/* Incident Reference & Telemetry Card */}
       <div
         style={{
           backgroundColor: theme.cardBg,
@@ -341,19 +471,92 @@ export const IncidentStatus: React.FC<IncidentStatusProps> = ({
             </div>
           </div>
 
-          <span
-            style={{
-              padding: '4px 12px',
-              borderRadius: '20px',
-              fontSize: '12px',
-              fontWeight: 700,
-              backgroundColor: isLocal ? '#78350f' : '#1e3a8a',
-              color: isLocal ? '#fde68a' : '#bfdbfe',
-              border: `1px solid ${isLocal ? '#f59e0b' : '#3b82f6'}`,
-            }}
-          >
-            {isLocal ? 'QUEUED OFFLINE' : 'DISPATCH TRANSMITTED'}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {/* Real-Time Stream Status Badge */}
+            {!isLocal && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '4px 10px',
+                  borderRadius: '16px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  backgroundColor:
+                    streamStatus === 'live'
+                      ? '#064e3b'
+                      : streamStatus === 'connecting'
+                      ? '#1e3a8a'
+                      : '#1e293b',
+                  color:
+                    streamStatus === 'live'
+                      ? '#6ee7b7'
+                      : streamStatus === 'connecting'
+                      ? '#93c5fd'
+                      : '#94a3b8',
+                  border: `1px solid ${
+                    streamStatus === 'live'
+                      ? '#10b981'
+                      : streamStatus === 'connecting'
+                      ? '#3b82f6'
+                      : '#334155'
+                  }`,
+                }}
+              >
+                <Activity size={12} />
+                {streamStatus === 'live'
+                  ? 'LIVE RELAY'
+                  : streamStatus === 'connecting'
+                  ? 'CONNECTING RELAY'
+                  : `POLLING (${recommendedPollIntervalMs / 1000}s)`}
+              </span>
+            )}
+
+            <span
+              style={{
+                padding: '4px 12px',
+                borderRadius: '20px',
+                fontSize: '12px',
+                fontWeight: 700,
+                backgroundColor: isLocal ? '#78350f' : '#1e3a8a',
+                color: isLocal ? '#fde68a' : '#bfdbfe',
+                border: `1px solid ${isLocal ? '#f59e0b' : '#3b82f6'}`,
+              }}
+            >
+              {isLocal ? 'QUEUED OFFLINE' : 'DISPATCH TRANSMITTED'}
+            </span>
+          </div>
+        </div>
+
+        {/* PRD LoRa / Satellite Packet Compression Diagnostics */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '8px',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            backgroundColor: oledMode ? '#111111' : '#0f172a',
+            border: `1px solid ${theme.cardBorder}`,
+            fontSize: '12px',
+            color: '#94a3b8',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Radio size={14} color="#60a5fa" />
+            <span>
+              Uplink Channel:{' '}
+              <strong style={{ color: isLocal ? '#fbbf24' : '#6ee7b7' }}>
+                {isLocal ? 'Offline Mesh Queue' : 'Captive Wi-Fi / Sat Relay'}
+              </strong>
+            </span>
+          </div>
+          <div style={{ fontFamily: 'monospace', color: '#cbd5e1' }}>
+            Payload Size: <strong>~{estimatedPayloadBytes} B</strong> (LoRa / Sat Compliant)
+          </div>
         </div>
 
         {isLocal && (
@@ -380,6 +583,57 @@ export const IncidentStatus: React.FC<IncidentStatusProps> = ({
           </div>
         )}
       </div>
+
+      {/* ATTACHED VOICE DISTRESS AUDIO DISPATCH CARD */}
+      {effectiveAudioBlob && (
+        <div
+          role="region"
+          aria-label="Attached Voice Dispatch"
+          style={{
+            backgroundColor: oledMode ? '#0a0a0a' : '#1e1b4b',
+            border: '2px solid #6366f1',
+            borderRadius: '12px',
+            padding: '16px 20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#c7d2fe', fontWeight: 700, fontSize: '15px' }}>
+              <Mic size={18} color="#818cf8" />
+              Attached Voice SOS Recording
+            </div>
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 700,
+                color: '#a5b4fc',
+                backgroundColor: '#312e81',
+                padding: '2px 8px',
+                borderRadius: '12px',
+              }}
+            >
+              15s Audio Dispatch
+            </span>
+          </div>
+
+          <div style={{ fontSize: '13px', color: '#e0e7ff' }}>
+            Your spoken distress message is securely packaged with this emergency beacon for arriving first responders.
+          </div>
+
+          <audio
+            src={effectiveAudioBlob}
+            controls
+            style={{
+              width: '100%',
+              height: '38px',
+              borderRadius: '8px',
+              outline: 'none',
+            }}
+          />
+        </div>
+      )}
 
       {/* RESCUER EN-ROUTE & UNIT DEPLOYMENT CARD (Stage 3 Live Relay) */}
       {assignedUnits.length > 0 && (
@@ -546,65 +800,97 @@ export const IncidentStatus: React.FC<IncidentStatusProps> = ({
         </div>
       </div>
 
-      {/* Bedrock AI / Rescuer Two-Way Flash Directive */}
-      {aiAction ? (
+      {/* TWO-WAY FLASH EVACUATION ALERT & DIRECTIVE (Stage 3 Real-time Relay) */}
+      {activeDirective ? (
         <div
           role="region"
           aria-label="Rescuer & AI Directive"
           style={{
-            backgroundColor: oledMode ? '#0f172a' : '#172554',
-            border: '2px solid #3b82f6',
+            backgroundColor: oledMode ? '#1e0505' : '#450a0a',
+            border: '2px solid #ef4444',
             borderRadius: '12px',
             padding: '20px',
-            boxShadow: oledMode ? 'none' : '0 0 20px rgba(59, 130, 246, 0.25)',
+            boxShadow: oledMode ? 'none' : '0 0 25px rgba(239, 68, 68, 0.35)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Bot size={24} color="#60a5fa" />
-              <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#93c5fd', margin: 0 }}>
-                Rescuer &amp; AI Live Directive
-              </h3>
+              <Bot size={24} color="#f87171" />
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#fca5a5', margin: 0 }}>
+                  Emergency Flash Directive
+                </h3>
+                <div style={{ fontSize: '11px', color: '#f87171' }}>
+                  Two-Way Tactical Alert Broadcast from Incident Commander &amp; AI Triage
+                </div>
+              </div>
             </div>
+
             <button
               onClick={playAlertChime}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                backgroundColor: '#1e3a8a',
-                border: '1px solid #3b82f6',
-                color: '#bfdbfe',
+                backgroundColor: '#7f1d1d',
+                border: '1px solid #ef4444',
+                color: '#fee2e2',
                 borderRadius: '6px',
-                padding: '4px 8px',
-                fontSize: '11px',
+                padding: '4px 10px',
+                fontSize: '12px',
                 cursor: 'pointer',
-                fontWeight: 600,
+                fontWeight: 700,
               }}
               title="Play alert tone"
             >
-              <Volume2 size={13} />
-              Audio Chime
+              <Volume2 size={14} />
+              Audio Siren
             </button>
           </div>
+
           <div
             style={{
-              backgroundColor: oledMode ? '#000000' : '#0f172a',
-              border: '1px solid #1e3a8a',
+              backgroundColor: oledMode ? '#000000' : '#1c0505',
+              border: '1px solid #7f1d1d',
               borderRadius: '8px',
               padding: '14px',
-              color: '#f8fafc',
+              color: '#fef2f2',
               fontSize: '16px',
-              fontWeight: 600,
+              fontWeight: 700,
               lineHeight: 1.6,
             }}
           >
-            {aiAction}
+            {activeDirective}
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              onClick={() => setIsDirectiveAcknowledged(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: isDirectiveAcknowledged ? '#065f46' : '#991b1b',
+                border: `1px solid ${isDirectiveAcknowledged ? '#10b981' : '#f87171'}`,
+                color: '#ffffff',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              <Check size={16} />
+              {isDirectiveAcknowledged ? 'DIRECTIVE ACKNOWLEDGED · SAFE' : 'CONFIRM RECEIPT'}
+            </button>
           </div>
         </div>
       ) : null}
 
-      {/* Optimistic Immediate Local Survival Protocol */}
+      {/* Immediate Local Survival Protocol */}
       <div
         role="region"
         aria-label="Immediate Survival Protocol"

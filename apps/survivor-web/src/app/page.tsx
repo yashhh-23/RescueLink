@@ -67,6 +67,7 @@ export default function SurvivorWebPage() {
             incidentId={activeIncident.id}
             category={activeIncident.category}
             isLocal={activeIncident.isLocal}
+            payload={activeIncident.payload}
             onReset={handleReset}
           />
         ) : (

@@ -85,3 +85,18 @@ export interface PendingIncident {
   payload: SOSSubmission;
   errorMessage?: string;
 }
+
+export interface BroadcastMessage {
+  id?: string;
+  message: string;
+  channel?: 'wifi' | 'sms' | 'email' | string;
+  deliveredAt?: number;
+}
+
+export interface SurvivorSSEEvent {
+  type: 'incident:created' | 'incident:updated' | 'broadcast:sent';
+  incident: IncidentResponse;
+  message?: string;
+  timestamp: number;
+}
+
