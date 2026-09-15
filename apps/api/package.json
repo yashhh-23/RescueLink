@@ -10,6 +10,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.1132.0",
+    "@aws-sdk/client-sns": "^3.1132.0",
     "@rescue-link/config": "*",
     "@rescue-link/schema": "*",
     "cors": "^2.8.5",
