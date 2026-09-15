@@ -36,6 +36,21 @@ const HAZARD_SEVERITY_COLOR: Record<HazardZone['severity'], string> = {
   critical: '#DC2626',
 };
 
+// Defensive guard against Leaflet internal race condition when DOM elements detach during animations
+if (typeof window !== 'undefined' && typeof L !== 'undefined' && L.DomUtil) {
+  const originalGetPosition = L.DomUtil.getPosition;
+  L.DomUtil.getPosition = function (el: HTMLElement) {
+    if (!el) {
+      return new L.Point(0, 0);
+    }
+    try {
+      return originalGetPosition.call(this, el);
+    } catch {
+      return new L.Point(0, 0);
+    }
+  };
+}
+
 function markerIcon(priority: Priority, isSelected: boolean) {
   const size = isSelected ? 18 : 14;
   return L.divIcon({
@@ -167,7 +182,11 @@ export function IncidentMap({
     mapRef.current = map;
 
     return () => {
-      map.remove();
+      try {
+        map.stop();
+        map.closePopup();
+        map.remove();
+      } catch {}
       mapRef.current = null;
     };
   }, []);
@@ -177,7 +196,15 @@ export function IncidentMap({
     const map = mapRef.current;
     if (!map) return;
 
-    markersRef.current.forEach((marker) => marker.remove());
+    try {
+      map.closePopup();
+    } catch {}
+
+    markersRef.current.forEach((marker) => {
+      try {
+        marker.remove();
+      } catch {}
+    });
     markersRef.current.clear();
 
     plottable.forEach((incident) => {
@@ -206,9 +233,13 @@ export function IncidentMap({
       const bounds = L.latLngBounds(
         plottable.map((incident) => [incident.location.lat, incident.location.lng] as [number, number])
       );
-      map.fitBounds(bounds, { padding: [32, 32], maxZoom: 12 });
+      try {
+        map.fitBounds(bounds, { padding: [32, 32], maxZoom: 12, animate: false });
+      } catch {}
     } else {
-      map.setView(FALLBACK_CENTER, FALLBACK_ZOOM);
+      try {
+        map.setView(FALLBACK_CENTER, FALLBACK_ZOOM, { animate: false });
+      } catch {}
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plottable]);
@@ -218,8 +249,10 @@ export function IncidentMap({
     if (!map || !selectedId) return;
     const marker = markersRef.current.get(selectedId);
     if (marker) {
-      map.setView(marker.getLatLng(), Math.max(map.getZoom(), FOCUSED_ZOOM));
-      marker.openPopup();
+      try {
+        map.setView(marker.getLatLng(), Math.max(map.getZoom(), FOCUSED_ZOOM), { animate: false });
+        marker.openPopup();
+      } catch {}
     }
   }, [selectedId]);
 
