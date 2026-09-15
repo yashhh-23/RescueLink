@@ -19,7 +19,6 @@ function makeIncident(overrides: Partial<IncidentResponse>): IncidentResponse {
     description: 'test incident',
     peopleAffected: 1,
     urgentNeeds: [],
-    contactMethod: 'none'
   };
 
   return {
