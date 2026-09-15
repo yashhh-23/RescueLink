@@ -53,7 +53,7 @@ export function useIncidents(): UseIncidentsState {
         void cacheIncidentList(data);
       })
       .catch(async (err: unknown) => {
-        if (err instanceof DOMException && err.name === 'AbortError') return;
+        if ((err as { name?: string })?.name === 'AbortError') return;
         if (latestRequestId.current !== requestId) return;
 
         setRefreshError(err instanceof ApiError ? err.message : 'Unable to load incidents.');

@@ -31,14 +31,21 @@ export function useHazardLayer(): UseHazardLayerState {
     const controller = new AbortController();
 
     async function load() {
-      const [sensorData, zoneData] = await Promise.all([
-        getSensors(controller.signal),
-        getHazardZones(controller.signal),
-      ]);
-      if (cancelled) return;
-      setSensors(sensorData);
-      setHazardZones(zoneData);
-      setHasLoaded(true);
+      try {
+        const [sensorData, zoneData] = await Promise.all([
+          getSensors(controller.signal),
+          getHazardZones(controller.signal),
+        ]);
+        if (cancelled) return;
+        setSensors(sensorData);
+        setHazardZones(zoneData);
+        setHasLoaded(true);
+      } catch (err: unknown) {
+        if (cancelled || (err as { name?: string })?.name === 'AbortError') {
+          return;
+        }
+        // Non-abort errors are ignored so the UI gracefully shows empty layers
+      }
     }
 
     load();

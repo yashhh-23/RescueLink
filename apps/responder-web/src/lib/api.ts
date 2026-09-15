@@ -206,8 +206,8 @@ export async function getSensors(signal?: AbortSignal): Promise<SensorReading[]>
   try {
     const data = await request('/sensors', { signal });
     return Array.isArray(data) ? (data as SensorReading[]) : [];
-  } catch (err) {
-    if (err instanceof DOMException && err.name === 'AbortError') throw err;
+  } catch (err: unknown) {
+    if ((err as { name?: string })?.name === 'AbortError') return [];
     return [];
   }
 }
@@ -217,8 +217,8 @@ export async function getHazardZones(signal?: AbortSignal): Promise<HazardZone[]
   try {
     const data = await request('/hazard-zones', { signal });
     return Array.isArray(data) ? (data as HazardZone[]) : [];
-  } catch (err) {
-    if (err instanceof DOMException && err.name === 'AbortError') throw err;
+  } catch (err: unknown) {
+    if ((err as { name?: string })?.name === 'AbortError') return [];
     return [];
   }
 }
